@@ -1,8 +1,10 @@
 #include "sorting.h"
 
-void radix_LSD_sort(line_t* data, const size_t data_size)
+void radix_LSD_sort(line_t * const data, const size_t data_size)
 {
-    const size_t radix = 257; 
+    if (!data || data_size == 0) return;
+
+    const size_t radix = 256 + 1; 
 
     size_t max_line_len = 0;
     for (size_t i = 0; i < data_size; i++)
@@ -12,12 +14,18 @@ void radix_LSD_sort(line_t* data, const size_t data_size)
     }
 
     line_t* temp  = calloc(data_size, sizeof(line_t));
+    if (!temp) return;
+
     size_t* count = calloc(radix, sizeof(size_t));
+    if (!count)
+    {
+        free(temp);
+        return;
+    }
 
     for (ssize_t pos = max_line_len - 1; pos >= 0; pos--)
     {
         memset(count, 0, radix * sizeof(size_t));
-        //size_t count[radix] = {};
         for (size_t i = 0; i < data_size; i++)
         {
             if (data[i].clean_str_len <= 1) continue;
