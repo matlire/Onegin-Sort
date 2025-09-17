@@ -1,10 +1,16 @@
 #include <stddef.h>
 
+/*
+    Struct that describes buffer arrays
+    str_ptr, str_len             refer to raw buffer
+    clean_str_ptr, clean_str_len refer to cleaned(lowered, ignored ', ", etc)
+*/
+
 #ifndef LINE_T
 #define LINE_T
 typedef struct
 {
-    char*  start_ptr;
+    char*  str_ptr;
     size_t str_len;
 
     char*  clean_str_ptr;
@@ -21,6 +27,11 @@ typedef struct
 #include <ctype.h>
 #include <stdio.h>
 
-void radix_LSD_sort(line_t * const data, const size_t data_size);
+/*
+    Function to sort data with data_size in direction:
+                                                -1 - start->end
+                                                1  - start<-end
+*/
+void radix_sort(line_t * const data, const size_t data_size, const int direction);
 
 #endif

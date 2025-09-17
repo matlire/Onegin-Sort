@@ -30,7 +30,7 @@ static int is_ignore(const char ch)
             ch == '_'  || ch == '-' ||
             ch == '\'' || ch == '"' ||
             ch == '{'  || ch == '}' ||
-            ch == '('  || ch == '}' ||
+            ch == '('  || ch == ')' ||
             ch == '['  || ch == ']' ||
             ch == '\\' || ch == '/' || ch == '|' ||
             ch == '\n' || ch == '\0'
@@ -63,9 +63,12 @@ static size_t clean_str(char* dest, const char* src)
 size_t read_file(FILE *file, char * const buffer, const size_t buffer_size)
 {
     if (!file || !buffer || buffer_size == 0) return 0;
+
     size_t read_bytes = fread(buffer, sizeof(char), buffer_size, file);
     if (read_bytes == 0) return 0;
+
     buffer[buffer_size - 1] = '\0';
+    
     return read_bytes;
 }
 
@@ -77,6 +80,7 @@ static size_t prepare_buffers(char * const buffer, char * const clean_buffer, co
 
     size_t index_size = 0;
 
+    // Replace \n with \0
     for (size_t i = 0; i < buffer_size; i++)
     {
         if (buffer[i] == '\n')
@@ -96,12 +100,14 @@ static size_t parse_buffer(char * const buffer, line_t * const index, const size
 
     size_t curr_len = 0;
     size_t start_byte = 0;
+
+    // Iterate through buffer to update index
     for (size_t i = 0; i < buffer_size; i++)
     {
         if (buffer[i] == '\0')
         {
-            index[start_byte].start_ptr = &(buffer[i - curr_len + 1]);
-            index[start_byte].str_len   = curr_len;
+            index[start_byte].str_ptr = &(buffer[i - curr_len + 1]);
+            index[start_byte].str_len = curr_len;
             curr_len = 0;
             start_byte++;
         }
@@ -115,10 +121,11 @@ static size_t handle_clean_buffer(char* clean_buffer, line_t * const index, cons
 {
     if (!clean_buffer || !index || index_size == 0) return 0;
 
+    // Clean strs line by line
     char* new_start_ptr = (char*)clean_buffer;
     for (size_t i = 0; i < index_size; i++)
     {
-        size_t new_len = clean_str(new_start_ptr, index[i].start_ptr);
+        size_t new_len = clean_str(new_start_ptr, index[i].str_ptr);
         index[i].clean_str_ptr = new_start_ptr;
         index[i].clean_str_len = new_len;
         new_start_ptr += new_len;
