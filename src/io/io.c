@@ -1,5 +1,23 @@
 #include "io.h"
 
+void parse_arguments(const int argc, char* const argv[], \
+                     const char** in_file, const char** out_file)
+{
+    CHECK(FATAL, argc != 5, "Incorrect arguments for shell");
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (strstr(argv[i], "--infile"))
+        {
+            *in_file = strdup(argv[++i]);
+        }
+        if (strstr(argv[i], "--outfile"))
+        {
+            *out_file = strdup(argv[++i]);
+        }
+    }
+}
+
 FILE *load_file (const char * const name, const char * const mode)
 {
     FILE* f = fopen(name, mode);
@@ -46,57 +64,55 @@ static size_t clean_str(char* dest, const char* src)
     return (len + 1);
 }
 
-size_t read_file(FILE *file, char * const buffer, const size_t buffer_size)
+size_t read_file(FILE *file, operational_data_t* op_data)
 {
-    CHECK(FATAL, !file || !buffer || buffer_size == 0, \
+    CHECK(FATAL, !file || !op_data, \
           "Error reading file, some data is missing");
 
-    size_t read_bytes = fread(buffer, sizeof(char), buffer_size, file);
+    size_t read_bytes = fread(op_data->buffer, sizeof(char), op_data->buffer_size, file);
     if (read_bytes == 0) return 0;
 
-    buffer[read_bytes] = '\0';
+    op_data->buffer[read_bytes] = '\0';
     
     return read_bytes;
 }
 
-static size_t prepare_buffers(char * const buffer, char * const clean_buffer, const size_t buffer_size)
+static size_t prepare_buffers(operational_data_t* op_data)
 {
-    CHECK(FATAL, !buffer || !clean_buffer || buffer_size == 0, \
+    CHECK(FATAL, !op_data, \
           "Error preparing buffers, some data is missing");
 
-    memcpy(clean_buffer, buffer, buffer_size);
-
-    size_t index_size = 0;
+    memcpy(op_data->clean_buffer, op_data->buffer, op_data->buffer_size);
 
     // Replace \n with \0
-    for (size_t i = 0; i < buffer_size; i++)
+    for (size_t i = 0; i < op_data->buffer_size; i++)
     {
-        if (buffer[i] == '\n')
+        if ((op_data->buffer)[i] == '\n')
         {
-            index_size++;
-            buffer[i] = '\0';
+            op_data->index_size++;
+            (op_data->buffer)[i] = '\0';
         }
     }
-    index_size++;
+    op_data->index_size++;
 
-    return index_size;
+    return 0;
 }
 
-static size_t parse_buffer(char * const buffer, line_t * const index, const size_t buffer_size)
+static size_t parse_buffer(operational_data_t* op_data)
 {
-    CHECK(FATAL, !buffer || !index || buffer_size == 0, \
+    CHECK(FATAL, !op_data, \
           "Error parsing buffer, some data is missing");
 
     size_t curr_len = 0;
-    size_t start_byte = 0;
+    size_t start_byte = 0; 
 
     // Iterate through buffer to update index
-    for (size_t i = 0; i < buffer_size; i++)
+    for (size_t i = 0; i < op_data->buffer_size; i++)
     {
-        if (buffer[i] == '\0')
+        if ((op_data->buffer)[i] == '\0')
         {
-            index[start_byte].str_ptr = &(buffer[i - curr_len + 1]);
-            index[start_byte].str_len = curr_len;
+            (op_data->index)[start_byte].str_ptr = &((op_data->buffer)[i - curr_len + 1]);
+            (op_data->index)[start_byte].str_len = curr_len;
             curr_len = 0;
             start_byte++;
         }
@@ -106,41 +122,40 @@ static size_t parse_buffer(char * const buffer, line_t * const index, const size
     return 0;
 }
 
-static size_t handle_clean_buffer(char* clean_buffer, line_t * const index, const size_t index_size)
+static size_t handle_clean_buffer(operational_data_t* op_data)
 {
-    CHECK(FATAL, !clean_buffer || !index || index_size == 0, \
+    CHECK(FATAL, !op_data, \
           "Error cleaning buffer, some data is missing");
 
     // Clean strs line by line
-    char* new_start_ptr = (char*)clean_buffer;
-    for (size_t i = 0; i < index_size; i++)
+    char* new_start_ptr = (char*)(op_data->clean_buffer);
+    for (size_t i = 0; i < op_data->index_size; i++)
     {
-        size_t new_len = clean_str(new_start_ptr, index[i].str_ptr);
-        index[i].clean_str_ptr = new_start_ptr;
-        index[i].clean_str_len = new_len;
+        size_t new_len = clean_str(new_start_ptr, (op_data->index)[i].str_ptr);
+        (op_data->index)[i].clean_str_ptr = new_start_ptr;
+        (op_data->index)[i].clean_str_len = new_len;
         new_start_ptr += new_len;
     }
     return 0;
 }
 
-size_t parse_file(char* buffer, char * const clean_buffer, line_t** index, const size_t buffer_size)
+size_t parse_file(operational_data_t* op_data)
 {
-    CHECK(FATAL, !buffer || !clean_buffer || !index || buffer_size == 0, \
+    CHECK(FATAL, !op_data, \
           "Error parsing file, some data is missing");
-    
-    size_t index_size = prepare_buffers(buffer, clean_buffer, buffer_size);
- 
-    *index = calloc(index_size, sizeof(line_t));
-    CHECK(FATAL, !index, \
+
+    size_t prep_res = prepare_buffers(op_data);
+    (op_data->index) = calloc(op_data->index_size, sizeof(line_t));
+    CHECK(FATAL, !(op_data->index), \
           "Can't calloc index");
-    
-    size_t parse_res = parse_buffer(buffer, *index, buffer_size);
+
+    size_t parse_res = parse_buffer(op_data);
     if (parse_res) return 0;
 
-    size_t clean_res = handle_clean_buffer(clean_buffer, *index, index_size);
+    size_t clean_res = handle_clean_buffer(op_data);
     if (clean_res) return 0;
 
-    return index_size;
+    return prep_res;
 }
 
 size_t  clean_file(const char * const filename)
@@ -154,9 +169,9 @@ size_t  clean_file(const char * const filename)
 }
 
 size_t  print_parsed_to_file (const char * const filename, const char * const label, \
-                              const line_t * const index, const size_t index_size)
+                              operational_data_t* op_data)
 {
-    CHECK(FATAL, strlen(filename) == 0 || strlen(label) == 0 || !index || index_size == 0, \
+    CHECK(FATAL, strlen(filename) == 0 || strlen(label) == 0 || !op_data, \
           "Error printing parsed result to file, some data is missing");
 
      // Open file to print output
@@ -166,9 +181,9 @@ size_t  print_parsed_to_file (const char * const filename, const char * const la
     // Print result
     fprintf(file_out, "\n\n%s\n\n", label);
     
-    for(size_t i = 0; i < index_size; i++)
+    for(size_t i = 0; i < op_data->index_size; i++)
     {
-        if (index[i].clean_str_ptr) fprintf(file_out, "%s\n", index[i].str_ptr);
+        if (((op_data->index)[i]).clean_str_ptr) fprintf(file_out, "%s\n", (op_data->index)[i].str_ptr);
     }
 
     fclose(file_out);
@@ -176,27 +191,26 @@ size_t  print_parsed_to_file (const char * const filename, const char * const la
     return 0;
 }
 
-size_t prepare_data(const char * const filename, FILE* file,                   \
-                    char** buffer, char** clean_buffer, size_t* buffer_size)
+size_t prepare_data(const char * const filename, operational_data_t* op_data)
 {
-    CHECK(FATAL, !filename, \
+    CHECK(FATAL, !filename || !op_data, \
           "No filename provided for preparing data")
 
-    file = load_file(filename, "r");
+    FILE* file = load_file(filename, "r");
 
     ssize_t read_size = get_file_size_stat(filename);
-    *buffer_size      = ((size_t)read_size) + 1;
+    op_data->buffer_size = ((size_t)read_size) + 1;
 
-    *buffer = calloc(*buffer_size, sizeof(char));
-    CHECK(FATAL, !buffer, \
+    op_data->buffer = calloc(op_data->buffer_size, sizeof(char));
+    CHECK(FATAL, !(op_data->buffer), \
           "Can't calloc buffer");
 
-    *clean_buffer = calloc(*buffer_size, sizeof(char));
-    CHECK(FATAL, !clean_buffer, \
+    op_data->clean_buffer = calloc(op_data->buffer_size, sizeof(char));
+    CHECK(FATAL, !(op_data->clean_buffer), \
           "Can't calloc clean_buffer");
 
     // Read file
-    size_t bytes_read = read_file(file, *buffer, *buffer_size);
+    size_t bytes_read = read_file(file, op_data);
     fclose(file);
 
     CHECK(FATAL, bytes_read == 0, \
@@ -207,9 +221,9 @@ size_t prepare_data(const char * const filename, FILE* file,                   \
 
 
 size_t  print_original_to_file (const char * const filename,                         \
-                                const char * const buffer, const size_t buffer_size)
+                                operational_data_t* op_data)
 {
-    CHECK(FATAL, !buffer || buffer_size == 0, \
+    CHECK(FATAL, !filename || !op_data, \
           "Error printing original data to file, some data is missing");
 
     // Open file to print output
@@ -217,15 +231,15 @@ size_t  print_original_to_file (const char * const filename,                    
 
     // Restore original
     fprintf(file_out, "\n\nOriginal Onegin\n\n");
-    for(size_t i = 0; i < buffer_size; i++)
+    for(size_t i = 0; i < op_data->buffer_size; i++)
     {
-        if (buffer[i] == '\0')
+        if ((op_data->buffer)[i] == '\0')
         {
             fprintf(file_out, "\n");
             continue;
         }
 
-        fprintf(file_out, "%c", buffer[i]);
+        fprintf(file_out, "%c", (op_data->buffer)[i]);
     } 
 
     fclose(file_out);

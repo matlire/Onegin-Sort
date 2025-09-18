@@ -1,1 +1,1 @@
-gcc -fsanitize=address,undefined -O1 -Wall -Wextra -Wno-unused-function -lm -D __DEBUG__ -I./src src/main.c src/sorting/sorting.c src/io/io.c src/logging/logging.c -o dist/main.out && ./dist/main.out
+gcc -fsanitize=address,undefined -O1 -Wall -Wextra -Wno-unused-function -lm -D __DEBUG__ -I./src src/main.c src/sorting/sorting.c src/io/io.c src/logging/logging.c -o dist/main.out && ./dist/main.out --infile dist/onegin_cleaned.txt --outfile dist/onegin_out.txt

@@ -86,7 +86,6 @@ static void format_log (const logging_level level, const char * const str, char*
 */
 
 #ifdef __DEBUG__
-
 #define CHECK(level, condition, format, ...)                                    \
     {                                                                           \
         if (condition) {                                                        \
@@ -97,7 +96,6 @@ static void format_log (const logging_level level, const char * const str, char*
     }
 
 #else
-
 #define CHECK(level, condition, format, ...)                                    \
     {                                                                           \
         if (condition) {                                                        \
