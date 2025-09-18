@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include "logging/logging.h"
 
 /*
     Struct that describes buffer arrays

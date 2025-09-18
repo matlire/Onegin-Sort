@@ -14,27 +14,13 @@ FILE *load_file (const char * const name, const char * const mode)
 ssize_t get_file_size_stat(const char * const filename) {
     if (!filename) return -1;
 
-    struct stat st;
+    struct stat st = {  };
     if (stat(filename, &st) == 0) {
         return st.st_size;
     } else {
         perror("Error getting file status");
         return -1;
     }
-}
-
-static int is_ignore(const char ch)
-{
-    return (ch == ' '  || ch == ',' || ch == '.' ||
-            ch == '?'  || ch == '!' || ch == ':' || ch == ';' ||
-            ch == '_'  || ch == '-' ||
-            ch == '\'' || ch == '"' ||
-            ch == '{'  || ch == '}' ||
-            ch == '('  || ch == ')' ||
-            ch == '['  || ch == ']' ||
-            ch == '\\' || ch == '/' || ch == '|' ||
-            ch == '\n' || ch == '\0'
-            );
 }
 
 static size_t clean_str(char* dest, const char* src)
@@ -45,14 +31,14 @@ static size_t clean_str(char* dest, const char* src)
     while(*src)
     {
         char ch = *src;
-        if (is_ignore(ch)) { *src++; continue; }
-        if (ch > 'z')      { *src++; continue; }
-        if (ch < 'a')      ch = ch - 'A' + 'a';
+        if (ispunct(ch) || ch == ' ' || ch > 'z') { src++; continue; }
+
+        if (ch < 'a') ch = ch - 'A' + 'a';
         
         *dest++ = ch;
         len++;
 
-        *src++;
+        src++;
     }
 
     *dest = '\0';
@@ -67,7 +53,7 @@ size_t read_file(FILE *file, char * const buffer, const size_t buffer_size)
     size_t read_bytes = fread(buffer, sizeof(char), buffer_size, file);
     if (read_bytes == 0) return 0;
 
-    buffer[buffer_size - 1] = '\0';
+    buffer[read_bytes] = '\0';
     
     return read_bytes;
 }
@@ -96,7 +82,7 @@ static size_t prepare_buffers(char * const buffer, char * const clean_buffer, co
 
 static size_t parse_buffer(char * const buffer, line_t * const index, const size_t buffer_size)
 {
-    if (!buffer || !index || buffer_size == 0) return 0;
+    if (!buffer || !index || buffer_size == 0) return 1;
 
     size_t curr_len = 0;
     size_t start_byte = 0;
@@ -119,7 +105,7 @@ static size_t parse_buffer(char * const buffer, line_t * const index, const size
 
 static size_t handle_clean_buffer(char* clean_buffer, line_t * const index, const size_t index_size)
 {
-    if (!clean_buffer || !index || index_size == 0) return 0;
+    if (!clean_buffer || !index || index_size == 0) return 1;
 
     // Clean strs line by line
     char* new_start_ptr = (char*)clean_buffer;
@@ -141,9 +127,93 @@ size_t parse_file(char* buffer, char * const clean_buffer, line_t** index, const
  
     *index = calloc(index_size, sizeof(line_t));
 
-    parse_buffer(buffer, *index, buffer_size);
+    size_t parse_res = parse_buffer(buffer, *index, buffer_size);
+    if (parse_res) return 0;
 
-    handle_clean_buffer(clean_buffer, *index, index_size);  
+    size_t clean_res = handle_clean_buffer(clean_buffer, *index, index_size);
+    if (clean_res) return 0;
 
     return index_size;
+}
+
+size_t  clean_file(const char * const filename)
+{
+    FILE* file_out = load_file(filename, "w");
+    if (!file_out) return 1;
+
+    fclose(file_out);
+    return 0;
+}
+
+size_t  print_parsed_to_file (const char * const filename, const char * const label, \
+                              const line_t * const index, const size_t index_size)
+{
+    if (strlen(filename) == 0 || strlen(label) == 0 || !index || index_size == 0) return 1;
+
+     // Open file to print output
+    FILE* file_out = load_file(filename, "a");
+    if (!file_out) return 1;
+
+    // Print result
+    fprintf(file_out, "\n\n%s\n\n", label);
+    
+    for(size_t i = 0; i < index_size; i++)
+    {
+        if (index[i].clean_str_ptr) fprintf(file_out, "%s\n", index[i].str_ptr);
+    }
+
+    fclose(file_out);
+
+    return 0;
+}
+
+size_t prepare_data(const char * const filename, FILE* file,                   \
+                    char** buffer, char** clean_buffer, size_t* buffer_size)
+{
+    file = load_file(filename, "r");
+
+    ssize_t read_size = get_file_size_stat(filename);
+    *buffer_size      = ((size_t)read_size) + 1;
+
+    *buffer = calloc(*buffer_size, sizeof(char));
+    if (!buffer) return 1;
+
+    *clean_buffer = calloc(*buffer_size, sizeof(char));
+    if (!clean_buffer) { return 1; }
+    
+    // Read file
+    size_t bytes_read = read_file(file, *buffer, *buffer_size);
+    fclose(file);
+
+    if (bytes_read == 0) { return 1; }
+
+    return 0;
+}
+
+
+size_t  print_original_to_file (const char * const filename,                         \
+                                const char * const buffer, const size_t buffer_size)
+{
+    if (!buffer || buffer_size == 0) return 1;
+
+    // Open file to print output
+    FILE* file_out = load_file(filename, "a");
+    if (!file_out) return 1;
+
+    // Restore original
+    fprintf(file_out, "\n\nOriginal Onegin\n\n");
+    for(size_t i = 0; i < buffer_size; i++)
+    {
+        if (buffer[i] == '\0')
+        {
+            fprintf(file_out, "\n");
+            continue;
+        }
+
+        fprintf(file_out, "%c", buffer[i]);
+    } 
+
+    fclose(file_out);
+
+    return 0;
 }
