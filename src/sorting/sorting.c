@@ -2,7 +2,8 @@
 
 void radix_sort(line_t * const data, const size_t data_size, const int direction)
 {
-    if (!data || data_size < 2) return;
+    CHECK(FATAL, !data || data_size < 2, \
+          "Incorrect input data for radix sort");
 
     const size_t radix = 256 + 1; 
 
@@ -16,10 +17,14 @@ void radix_sort(line_t * const data, const size_t data_size, const int direction
 
     // Temp array for buckit distribution during sorting
     line_t* temp  = calloc(data_size, sizeof(line_t));
-    if (!temp) return;
+    CHECK(FATAL, !temp, \
+          "Can't calloc temp for radix sort");
 
     // Count array for saving character occurencies
     size_t* count = calloc(radix, sizeof(size_t));
+    CHECK(FATAL, !count, \
+          "Can't calloc count");
+
     if (!count)
     {
         free(temp);

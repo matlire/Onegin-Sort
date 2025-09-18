@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+
 /*
     Function to automatically free provided buffers
 */
@@ -20,8 +22,7 @@ int main()
     printf("Starting...\n");
 
     // Init logging
-    FILE* log_file = load_file(LOG_FILE, "w");
-    init_logging(log_file, INFO);
+    init_logging(LOG_FILE, INFO);  
 
     // Prepare data
     FILE* file = NULL;

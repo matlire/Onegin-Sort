@@ -2,8 +2,11 @@
 
 static logging_t logging; 
 
-void init_logging (FILE* file, const logging_level level)
+void init_logging (const char * const filename, const logging_level level)
 {
+    FILE* file = fopen(filename, "a");
+    if (!file) return;
+
     // Check for debug flag in compiler
     logging.file  = file;
     logging.level = level;

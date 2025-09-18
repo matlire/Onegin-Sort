@@ -1,13 +1,13 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "../io/io.h"
 
@@ -30,10 +30,10 @@ static const char *const logging_levels[5] = {
     "DEBUG", "INFO", "WARN", "ERROR", "FATAL"
 };
 
-#define PRINT_ERROR(level, format, ...)                                      \
+#define log_printe(level, format, ...)                                       \
     {                                                                        \
         log_printf(level, "[File %s at line %d at %s] " format,              \
-                    __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); \
+                   __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); \
     }
 
 typedef struct
@@ -45,10 +45,10 @@ typedef struct
 /*
     Init logging module
     Parameters:
-        file  - file to write into
-        level - logging level
+        filename - filename to write into
+        level    - logging level
 */
-void init_logging (FILE* file, const logging_level level);
+void init_logging (const char * const filename, const logging_level level);
 
 /*
     Print to log
@@ -78,5 +78,32 @@ static void get_timestamp (char * const timestamp);
         res_str - string where to write formatted result
 */
 static void format_log (const logging_level level, const char * const str, char* res_str); 
+
+#endif
+
+/*
+    Checks that work in debug and exits and in release not. Also logs errors
+*/
+
+#ifdef __DEBUG__
+
+#define CHECK(level, condition, format, ...)                                    \
+    {                                                                           \
+        if (condition) {                                                        \
+            log_printf(level, "[File %s at line %d at %s] " format,             \
+                       __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); \
+            exit(1);                                                            \
+        }                                                                       \
+    }
+
+#else
+
+#define CHECK(level, condition, format, ...)                                    \
+    {                                                                           \
+        if (condition) {                                                        \
+            log_printf(level, "[File %s at line %d at %s] " format,             \
+                       __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__); \
+        }                                                                       \
+    }
 
 #endif
